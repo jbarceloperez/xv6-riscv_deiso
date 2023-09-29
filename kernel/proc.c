@@ -55,6 +55,9 @@ procinit(void)
       initlock(&p->lock, "proc");
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
+      // TAREA 1
+      p->pos_in_scheduler = -1;
+      p->tickets = 1;
   }
 }
 
@@ -680,4 +683,10 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+
+// TAREA 1
+int settickets(int tickets){
+  return -1;
 }

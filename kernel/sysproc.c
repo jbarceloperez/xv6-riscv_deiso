@@ -89,3 +89,13 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// TAREA 1
+uint64
+sys_settickets(void)
+{
+  int tickets;
+
+  argint(0, &tickets);
+  return settickets(tickets);
+}
