@@ -99,3 +99,15 @@ sys_settickets(void)
   argint(0, &tickets);
   return settickets(tickets);
 }
+
+// TAREA 1
+uint64
+sys_getpinfo(void)
+{
+  uint64 pstat;
+
+  argaddr(0, &pstat);
+  if(0 == pstat) return -1;
+
+  return getpstat((struct pstat *) pstat);
+}

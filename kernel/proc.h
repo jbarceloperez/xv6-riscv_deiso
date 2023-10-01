@@ -94,9 +94,12 @@ struct proc {
   int pid;                     // Process ID
 
 
-  // TAREA 1 scheduler->lock must be held when using these
-  int pos_in_scheduler;
+  // TAREA 1 
   int tickets;
+  int ticks;
+  //scheduler->lock para cambiar esto
+  int pos_in_scheduler;
+  
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

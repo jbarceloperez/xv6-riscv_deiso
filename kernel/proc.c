@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "scheduler.h"
 
 struct cpu cpus[NCPU];
 
@@ -25,6 +26,9 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+
+//TAREA 1
+struct scheduler sch;
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -58,6 +62,7 @@ procinit(void)
       // TAREA 1
       p->pos_in_scheduler = -1;
       p->tickets = 1;
+      p->ticks = 0;
   }
 }
 
@@ -325,6 +330,17 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
+  //TAREA 1 TODO
+  np->tickets = p->tickets;
+  np->ticks = 0;
+  np->pos_in_scheduler = -1;
+  acquire(&sch.lock);
+  if(scheduler_addproc(np)) 
+    panic("fork: Scheduler debería tener espacio.");
+  if(scheduler_settickets(np, np->tickets))
+    panic("fork: Scheduler no añade los tickets.");
+  release(&sch.lock);  
+
   return pid;
 }
 
@@ -444,6 +460,7 @@ wait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
+// TODO TAREA 1 (Modificar para que use el scheduler)
 void
 scheduler(void)
 {
@@ -686,7 +703,44 @@ procdump(void)
 }
 
 
-// TAREA 1
+// TAREA 1 TODO
 int settickets(int tickets){
   return -1;
+}
+
+// TAREA 1 TODO
+int getpstat(struct pstat * pstat){
+  return -1;
+}
+
+// TAREA 1 TODO
+void initscheduler(){
+  //scheduler.proc = {0};
+  //scheduler.segtrees = {0};
+  sch.num_proc = 0;
+  sch.sum_tickets = 0;
+  initlock(&sch.lock, "scheduler");
+  sch.rg.last_gen = 7428;
+  sch.rg.P = 1000 * 1000 * 1000 + 7;
+  sch.rg.seed = 2023;
+}
+
+// TAREA 1 TODO
+int scheduler_addproc(struct proc * proc){
+  return -1;
+}
+
+// TAREA 1 TODO
+int scheduler_settickets(struct proc * proc, int tickets){
+  return -1;
+}
+
+// TAREA 1 TODO
+int scheduler_removeproc(struct proc * proc){
+  return -1; 
+}
+
+// TAREA 1 TODO
+struct proc * scheduler_nextproc(){
+  return 0 /* NULL */;
 }

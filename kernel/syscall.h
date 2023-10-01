@@ -22,3 +22,4 @@
 #define SYS_close  21
 // TAREA 1
 #define SYS_settickets  22 
+#define SYS_getpinfo    23 
