@@ -56,9 +56,6 @@ procinit(void)
 {
   struct proc *p;
   
-  //TAREA 1
-  initscheduler();
-
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
@@ -274,10 +271,8 @@ userinit(void)
 
   //TAREA 1
   initscheduler();
-  acquire(&sch.lock);
   scheduler_addproc(p);
   scheduler_settickets(p, 1);
-  release(&sch.lock);
 }
 
 // Grow or shrink user memory by n bytes.
@@ -349,14 +344,11 @@ fork(void)
   release(&np->lock);
 
   //TAREA 1 TODO
-  //np->ticks = 0;
-  //np->pos_in_scheduler = -1;
-  acquire(&sch.lock);
   if(scheduler_addproc(np)) 
     panic("fork: Scheduler debería tener espacio.");
-  if(scheduler_settickets(np, np->tickets))
+  printf("Copiando tickets: %d", p->tickets);
+  if(scheduler_settickets(np, p->tickets))
     panic("fork: Scheduler no añade los tickets.");
-  release(&sch.lock);  
 
   return pid;
 }
@@ -489,23 +481,27 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    p = scheduler_nextproc();
+    while(0 == (p = scheduler_nextproc()));
     //for(p = proc; p < &proc[NPROC]; p++) {
       
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+    acquire(&p->lock);
+    if(p->state == RUNNABLE) {
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      
+      //printf("Seleccionado proc %d\n", p->pid);
+      p->state = RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
+      
+      //printf("Entra al scheduler, pid: %d, runnable? %d \n.", p->pid, p->state);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
-      release(&p->lock);
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&p->lock);
     //}
   }
 }
@@ -725,7 +721,7 @@ procdump(void)
 // TAREA 1 TODO
 int settickets(int tickets){
   if(tickets < 0) return -1;
-  mycpu()->proc->tickets = tickets;
+  scheduler_settickets(mycpu()->proc, tickets);
   return 0;
 }
 
@@ -747,6 +743,7 @@ int getpinfo(struct pstat * pstat){
 void initscheduler(){
   //scheduler.proc = {0};
   //scheduler.segtrees = {0};
+  printf("Iniciando scheduler.\n");
   sch.num_proc = 0;
   sch.sum_tickets = 0;
   initlock(&sch.lock, "scheduler");
@@ -757,6 +754,7 @@ void initscheduler(){
 
 // TAREA 1 TODO
 int scheduler_addproc(struct proc * proc){
+  printf("scheduler_addproc\n");
   if(proc == 0) return -1;
   sch.num_proc += 1;
   return 0;
@@ -767,11 +765,13 @@ int scheduler_settickets(struct proc * proc, int tickets){
   if(proc == 0) return -1;
   sch.sum_tickets -= proc->tickets;
   sch.sum_tickets += (proc->tickets = tickets);
+  printf("scheduler_settickets pid: %d ticks: %d \n", proc->pid, proc->tickets);
   return 0;
 }
 
 // TAREA 1 TODO
 int scheduler_removeproc(struct proc * proc){
+  printf("scheduler_removeproc\n");
   if(proc == 0) return -1;
   sch.sum_tickets -= proc->tickets;
   proc->tickets = 0;
@@ -785,11 +785,16 @@ int rand(int mod){
 }
 
 // TAREA 1 TODO
-struct proc * scheduler_nextproc(){
- int sum = sch.sum_tickets;
+struct proc * 
+scheduler_nextproc(){
+ //printf("scheduler_nextproc\n");
+
+ int sum = 0; //sch.sum_tickets;
  //Para total de tickets.
  for(int i = 0; i < NPROC; ++i) 
    if(proc[i].state == RUNNABLE) sum += proc[i].tickets;
+
+ if(sum == 0) return 0;
 
  int counter = 0;
  int winner =  rand(sum);
