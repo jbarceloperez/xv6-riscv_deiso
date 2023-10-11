@@ -490,11 +490,14 @@ scheduler(void)
       // to release its lock and then reacquire it
       // before jumping back to us.
       
+      //TAREA 1
+      p->ticks++;
+      
       //printf("Seleccionado proc %d\n", p->pid);
       p->state = RUNNING;
       c->proc = p;
       swtch(&c->context, &p->context);
-      
+     
       //printf("Entra al scheduler, pid: %d, runnable? %d \n.", p->pid, p->state);
 
       // Process is done running for now.
@@ -730,7 +733,7 @@ int getpinfo(struct pstat * pstat){
   if(pstat == 0) return -1;
   struct pstat p;
   for(int i = 0; i < NPROC; ++i){
-    p.inuse[i] = (proc[i].state == UNUSED);
+    p.inuse[i] = (proc[i].state != UNUSED);
     p.tickets[i] = proc[i].tickets;
     p.pid[i] = proc[i].pid;
     p.ticks[i] = proc[i].ticks;
@@ -798,6 +801,7 @@ scheduler_nextproc(){
 
  int counter = 0;
  int winner =  rand(sum);
+// printf("%d %d\n");
  for(int i = 0; i < NPROC; ++i){
    if(proc[i].state == RUNNABLE) {
      counter += proc[i].tickets;

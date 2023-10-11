@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
   else{
     childs = DEFAULT_CHILDREN;
   }
-  settickets((childs+1)*10);
+  settickets((childs+1)*100);
 
   int pid;
 
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]){
         exit(1);
         break;
       case 0:
-        settickets((childs-i)*10);
+        settickets((childs-i)*100);
         break;
     }
     if(pid == 0){
