@@ -109,5 +109,5 @@ sys_getpinfo(void)
   argaddr(0, &pstat);
   if(0 == pstat) return -1;
 
-  return getpstat((struct pstat *) pstat);
+  return getpinfo((struct pstat *) pstat);
 }

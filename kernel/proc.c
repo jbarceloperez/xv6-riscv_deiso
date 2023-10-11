@@ -730,7 +730,7 @@ int settickets(int tickets){
 }
 
 // TAREA 1 TODO
-int getpstat(struct pstat * pstat){
+int getpinfo(struct pstat * pstat){
   if(pstat == 0) return -1;
   struct pstat p;
   for(int i = 0; i < NPROC; ++i){
