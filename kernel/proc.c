@@ -273,6 +273,7 @@ userinit(void)
   release(&p->lock);
 
   //TAREA 1
+  initscheduler();
   acquire(&sch.lock);
   scheduler_addproc(p);
   scheduler_settickets(p, 1);
