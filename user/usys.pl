@@ -36,3 +36,6 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
+# TAREA 2
+entry("mmap");
+entry("munmap");

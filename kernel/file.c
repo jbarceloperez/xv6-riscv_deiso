@@ -180,3 +180,13 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+// TAREA 2
+void * mmap(void *addr, int length, int prot, int flags,
+           int fd, int offset){
+	return 0;
+}
+
+int munmap(void *addr, int length){
+	return -1;
+}
+

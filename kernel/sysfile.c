@@ -503,3 +503,15 @@ sys_pipe(void)
   }
   return 0;
 }
+
+// TAREA 2
+uint64 sys_mmap(void){
+	return -1;
+}
+
+// TAREA 2
+uint64 sys_munmap(void){
+	return -1;
+}
+
+

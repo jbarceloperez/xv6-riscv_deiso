@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct VMAdata;
 
 // bio.c
 void            binit(void);
@@ -33,6 +34,10 @@ void            fileinit(void);
 int             fileread(struct file*, uint64, int n);
 int             filestat(struct file*, uint64 addr);
 int             filewrite(struct file*, uint64, int n);
+// TAREA 2
+void *mmap(void * addr, int length, int prot, int flags,
+           int fd, int offset);
+int munmap(void *addr, int length);
 
 // fs.c
 void            fsinit(int);
