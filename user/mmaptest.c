@@ -118,6 +118,7 @@ mmap_test(void)
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (1)");
 
+  printf("Caso1 OK");
   // should be able to map file opened read-only with private writable
   // mapping
   p = mmap(0, PGSIZE*2, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
@@ -131,6 +132,7 @@ mmap_test(void)
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (2)");
 
+  printf("Caso2 OK");
   // check that mmap doesn't allow read/write mapping of a
   // file opened read-only.
   if ((fd = open(f, O_RDONLY)) == -1)
@@ -140,7 +142,7 @@ mmap_test(void)
     err("mmap call should have failed");
   if (close(fd) == -1)
     err("close");
-
+  printf("Caso3 OK");
   // check that mmap does allow read/write mapping of a
   // file opened read/write.
   if ((fd = open(f, O_RDWR)) == -1)
@@ -150,6 +152,7 @@ mmap_test(void)
     err("mmap (3)");
   if (close(fd) == -1)
     err("close");
+  
 
   // check that the mapping still works after close(fd).
   _v1(p);
@@ -161,6 +164,8 @@ mmap_test(void)
   // unmap just the first two of three pages of mapped memory.
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (3)");
+
+  printf("Caso4 OK");
 
   // check that the writes to the mapped memory were
   // written to the file.
@@ -175,11 +180,14 @@ mmap_test(void)
   }
   if (close(fd) == -1)
     err("close");
+  
+  printf("Caso5 OK");
 
   // unmap the rest of the mapped memory.
   if (munmap(p+PGSIZE*2, PGSIZE) == -1)
     err("munmap (4)");
 
+   printf("Caso6 OK");
   //
   // mmap two files at the same time.
   //

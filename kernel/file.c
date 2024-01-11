@@ -202,14 +202,23 @@ void * mmap(void *addr, int length, int prot, int flags,
 
   if(0 == vma) panic("mmap: No VMA available.");
 
+  // Encontrar struct file
+  struct file * f = p->ofile[fd];
+  // Es el fichero válido? 
+  if( f->type != FD_INODE ) return (void *) -1;
+  
+  if( (prot & PROT_READ) && !(f->readable) ) return (void *) -1; 
+  if( (prot & PROT_WRITE) && (flags & MAP_SHARED) && !(f->writable) ) {
+	return (void *)-1;
+  }
+
   if( (prot & PROT_READ) && (prot & PROT_WRITE))
     vma->state = VMA_RW;
   else if( (prot & PROT_READ) )
     vma->state = VMA_R;
   else
     panic("mmap: No read protection.");
-  // Encontrar struct file
-  struct file * f = p->ofile[fd];
+  
   // Aumentar número de referencias al fichero 
   filedup(f);
   
@@ -229,8 +238,111 @@ void * mmap(void *addr, int length, int prot, int flags,
   return (void *) (vma->init);
 }
 
+int write_in_center(struct file *f, uint64 addr, uint64 init, uint64 n){
+    uint64 max = 4; //((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
+    uint64 i = 0;
+    int r = 0;
+    printf("\n%d %d %d\n", addr, init, n);
+    while(i < n){
+      printf("%d ", i);
+      int n1 = n - i;
+      if(n1 > max)
+        n1 = max;
+
+      begin_op();
+      ilock(f->ip);
+      
+      r = writei(f->ip, 1, addr + i, init + i, n1);
+      
+      iunlock(f->ip);
+      end_op();
+
+      if(r != n1){
+        panic("error from writei");
+        break;
+      }
+      i += r;
+    }
+    int ret = (i == n ? n : -1);
+  return ret;
+}
+
 int munmap(void *addr, int length){
+  struct proc * p = myproc();
+  // Encontrar VMAdata vacía en la lista de VMAdatas del proceso
+  struct VMAdata * vma = 0;
+  // addr dirección de una VMA ? 
+  
+  uint64 dir = (uint64) addr;
+  for(int i = 0; i < NUM_VMA; ++i){
+
+    if(p->vma[i].state != VMA_UNUSED            &&
+       dir >= p->vma[i].init                    && 
+       dir < p->vma[i].init + p->vma[i].size)
+    {
+      vma = &p->vma[i];
+    }
+  }
+
+  if(0 == vma) {
+    printf("munmap: addr not in VMA\n");
+    setkilled(p);
+    return -1;
+  }
+
+  // Hueco en medio.
+  if(vma->init < dir && dir + length < vma->init + vma->size){
+    return -1;
+  }
+
+  // VMA entera.
+  if(vma->init == dir && dir + length >= vma->init + vma->size){
+    if(vma->shared){
+      if(-1 == write_in_center(vma->f, vma->init, vma->file_init, vma->size)){
+        printf("%p %p %p %p\n", dir, vma->init, length, vma->size);	
+        panic("munmap: filewrite 1 failed");
+        return -1;
+      }
+    }
+    uvmunmap(p->pagetable, vma->init, vma->size / PGSIZE, 1);
+    fileclose(vma->f);
+    vma->state = VMA_UNUSED;
+  }
+  // VMA quitar final.
+  else if(vma->init < dir && dir + length >= vma->init + vma->size){
+    if(vma->shared){
+      if(-1 == write_in_center(vma->f, dir, vma->file_init - vma->init + dir
+	,(vma->init + vma->size) - dir)){
+	printf("%p %p %p\n", dir, vma->init + vma->size - dir, length);
+	panic("munmap: filewrite 2 failed");
+        return -1;
+      }
+    }
+    uvmunmap(p->pagetable, 
+	              dir, 
+		      (vma->init + vma->size - dir) / PGSIZE, 
+                      1);
+    vma->size = dir - vma->init;
+  }
+  // VMA quitar inicio.
+  else if(vma->init == dir && dir + length < vma->init + vma->size){
+    if(vma->shared){
+      if(-1 == write_in_center(vma->f, vma->init, vma->file_init, length)){
+	panic("munmap: filewrite 3 failed");
 	return -1;
+      }
+    }
+    printf("%d", length /PGSIZE );
+    uvmunmap(p->pagetable, vma->init, length / PGSIZE, 1);
+    
+    vma->size = vma->size - length;
+    vma->init = vma->init + length;
+    vma->file_init = vma->file_init + length;
+  } else {
+    return -1;
+  }
+  
+  return 0;
 }
 
 int load_file_page(struct VMAdata * vma, uint64 dir){

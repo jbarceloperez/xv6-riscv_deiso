@@ -550,7 +550,15 @@ uint64 sys_mmap(void){
 
 // TAREA 2
 uint64 sys_munmap(void){
-	return -1;
+  // void *addr, int length
+  uint64 addr = 0;
+  argaddr(0, &addr);
+  if(addr <= 0 || addr % PGSIZE != 0) return -1;
+  int length = 0;
+  argint(1, &length);
+  if(length <= 0 || length % PGSIZE != 0) return -1;
+  
+  return munmap((void *) addr, length);
 }
 
 
