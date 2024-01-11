@@ -38,7 +38,9 @@ _v1(char *p)
 {
   int i;
   for (i = 0; i < PGSIZE*2; i++) {
-    if (i < PGSIZE + (PGSIZE/2)) {
+    //printf("%x", p[i]);
+    //if(i % 128 == 127) printf("\n");
+    if (i < PGSIZE + (PGSIZE/2)) {     
       if (p[i] != 'A') {
         printf("mismatch at %d, wanted 'A', got 0x%x\n", i, p[i]);
         err("v1 mismatch (1)");

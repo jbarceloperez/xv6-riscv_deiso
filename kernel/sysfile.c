@@ -506,7 +506,46 @@ sys_pipe(void)
 
 // TAREA 2
 uint64 sys_mmap(void){
-	return -1;
+  //void *addr, int length, int prot, int flags, int fd, int offset
+  // Ignoramos addr
+  void * addr = 0;
+  
+  // length
+  int length = 0;
+  argint(1, &length);
+  if( length <= 0 || length % PGSIZE != 0){
+    return -1;
+  }
+  
+  //prot
+  int prot = 0;
+  argint(2, &prot);
+  if( prot <= 0 ){
+    return -1;
+  }  
+
+  //flags
+  int flags = 0;
+  argint(3, &flags);
+  if( flags <= 0 ){
+    return -1;
+  }
+
+  //fd
+  int fd = -1;
+  argint(4, &fd);
+  if(fd < 0){
+    return -1;
+  }
+
+  //offset
+  int offset = -1;
+  argint(5, &offset);
+  if(offset < 0){
+    return -1;
+  }
+
+  return (uint64) mmap(addr, length, prot, flags, fd, offset);
 }
 
 // TAREA 2

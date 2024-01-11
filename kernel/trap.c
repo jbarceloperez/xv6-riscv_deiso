@@ -29,8 +29,10 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+// Practica 2
 void load_page_if_correct(uint64 dir, int is_write){
   struct proc * p = myproc();  
+  
   if(dir == 0) {
 	printf("VMA lazy load failed, dir == 0\n");
         printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
@@ -42,15 +44,16 @@ void load_page_if_correct(uint64 dir, int is_write){
   // dir dirección de una VMA ? 
   struct VMAdata * vma = 0;
   for(int i = 0; i < NUM_VMA; ++i){
-    if(p->vma[i].state == VMA_UNUSED 		&&
-       dir >= p->vma[i].init 			&& 
+
+    if(p->vma[i].state != VMA_UNUSED            &&
+       dir >= p->vma[i].init                    && 
        dir < p->vma[i].init + p->vma[i].size)
     {
       vma = &p->vma[i];
     }
   }
 
-  if(!vma) {
+  if(0 == vma) {
     printf("VMA lazy load failed, dir not in VMA\n");
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -68,47 +71,24 @@ void load_page_if_correct(uint64 dir, int is_write){
   
   //CARGAR PÁGINA
   uint64 pa = (uint64) kalloc();
-  if(!pa) {
-    printf("VMA lazy load failed, VMA has no write permission.\n");
+  if(0 == pa) {
+    printf("VMA lazy load failed because kalloc failed.\n");
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
     return;
   }
 
-  if(!mappages(p->pagetable, 
+  mappages(p->pagetable, 
                         dir, 
                      PGSIZE, 
                          pa, 
-               PTE_U|PTE_R| ((vma->state == VMA_RW) * PTE_W)) )
-  {
-    printf("VMA lazy load failed, mappages failed.\n");
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
-    return;
-  }
-  // ÉXITO COPIAR CONTENIDO
+               PTE_U|PTE_R| ((vma->state == VMA_RW) ? PTE_W : 0) );
+
+  // ÉXITO, COPIAR CONTENIDO
   load_file_page(vma, dir);
-/*
-  ilock(vma->f->ip);
-  
-  int r = readi(vma->f->ip, 
-                         1, 
-                       dir, // destino
-           dir - vma->init + vma->file_init, // offset
-                    PGSIZE);
-
-  iunlock(vma->f->ip);
-
-  if(r == -1){
-    printf("VMA lazy load failed, file readi failed.\n");
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
-    return;	
-  }
-*/
+	
+  // Tratar res == -1 (fallo?)
 }
 
 //

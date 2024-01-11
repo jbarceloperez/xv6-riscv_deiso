@@ -13,16 +13,23 @@
 #include "stat.h"
 #include "proc.h"
 
+// TAREA 2
+#include "memlayout.h"
+
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct file file[NFILE];
+  // TAREA 2
+  uint64 vma_ptr;
 } ftable;
 
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
+  // TAREA 2
+  ftable.vma_ptr = VMA_INIT;
 }
 
 // Allocate a file structure.
@@ -183,7 +190,43 @@ filewrite(struct file *f, uint64 addr, int n)
 // TAREA 2
 void * mmap(void *addr, int length, int prot, int flags,
            int fd, int offset){
-	return 0;
+  struct proc * p = myproc();
+  // Encontrar VMAdata vacía en la lista de VMAdatas del proceso
+  struct VMAdata * vma = 0;
+  for(int i = 0; i < NUM_VMA; ++i){
+    if(p->vma[i].state == VMA_UNUSED) {
+      vma = &(p->vma[i]);
+      break;
+    }
+  }
+
+  if(0 == vma) panic("mmap: No VMA available.");
+
+  if( (prot & PROT_READ) && (prot & PROT_WRITE))
+    vma->state = VMA_RW;
+  else if( (prot & PROT_READ) )
+    vma->state = VMA_R;
+  else
+    panic("mmap: No read protection.");
+  // Encontrar struct file
+  struct file * f = p->ofile[fd];
+  // Aumentar número de referencias al fichero 
+  filedup(f);
+  
+  vma->f = f;
+  vma->size = length;
+  vma->file_init = offset;
+  vma->shared = (flags & MAP_SHARED) ? 1 : 0;
+
+  // Elegir posición inicial en memoria virtual  
+  acquire(&ftable.lock);
+
+  ftable.vma_ptr -= length;
+  vma->init = ftable.vma_ptr;
+
+  release(&ftable.lock);
+
+  return (void *) (vma->init);
 }
 
 int munmap(void *addr, int length){
@@ -191,8 +234,20 @@ int munmap(void *addr, int length){
 }
 
 int load_file_page(struct VMAdata * vma, uint64 dir){
+	
+  if(dir % PGSIZE != 0){
+    struct proc * p = myproc();
+    printf("VMA lazy load failed, dir not aligned with page size.\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    return -1;
+  }  
+
   ilock(vma->f->ip);
   
+  // Leer una única página.
+
   int r = readi(vma->f->ip, 
                          1, 
                        dir, // destino
@@ -201,7 +256,7 @@ int load_file_page(struct VMAdata * vma, uint64 dir){
 
   iunlock(vma->f->ip);
 
-  if(r == -1){
+  if(r < 0){
     struct proc * p = myproc();
     printf("VMA lazy load failed, file readi failed.\n");
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
@@ -209,7 +264,25 @@ int load_file_page(struct VMAdata * vma, uint64 dir){
     setkilled(p);
     return -1;	
   }
-
+  
+  if(r < PGSIZE){
+    char src = 0;
+    for(uint64 aux = dir + r;  aux < dir + PGSIZE; aux += 1){
+	
+      if(-1 == either_copyout(1, 
+		     aux, 
+                     &src, 
+                     1)){
+	struct proc * p = myproc();
+        printf("VMA lazy load failed, fallo rellenando con ceros.\n");
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+        setkilled(p);
+        return -1;	
+      } 
+    }
+  }
+  
   return 0;
 }
 

@@ -349,8 +349,8 @@ typedef uint64 *pagetable_t; // 512 PTEs
 #define PROT_WRITE (1L << 2)
 #define PROT_EXEC (1L << 3)
 #define PROT_NONE ( 0 )
-#define MAP_SHARED ( 1 )
-#define MAP_PRIVATE ( 0 )
+#define MAP_SHARED ( 1L << 1)
+#define MAP_PRIVATE ( 1L << 2)
 
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
