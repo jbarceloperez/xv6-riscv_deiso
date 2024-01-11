@@ -38,6 +38,7 @@ int             filewrite(struct file*, uint64, int n);
 void *mmap(void * addr, int length, int prot, int flags,
            int fd, int offset);
 int munmap(void *addr, int length);
+int load_file_page(struct VMAdata * vma, uint64 dir);
 
 // fs.c
 void            fsinit(int);

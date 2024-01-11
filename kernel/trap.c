@@ -29,6 +29,88 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+void load_page_if_correct(uint64 dir, int is_write){
+  struct proc * p = myproc();  
+  if(dir == 0) {
+	printf("VMA lazy load failed, dir == 0\n");
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    	printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    	setkilled(p);
+	return;
+  }
+
+  // dir dirección de una VMA ? 
+  struct VMAdata * vma = 0;
+  for(int i = 0; i < NUM_VMA; ++i){
+    if(p->vma[i].state == VMA_UNUSED 		&&
+       dir >= p->vma[i].init 			&& 
+       dir < p->vma[i].init + p->vma[i].size)
+    {
+      vma = &p->vma[i];
+    }
+  }
+
+  if(!vma) {
+    printf("VMA lazy load failed, dir not in VMA\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    return;
+  }
+
+  if(vma->state == VMA_R && is_write) {
+    printf("VMA lazy load failed, VMA has no write permission.\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    return;
+  }
+  
+  //CARGAR PÁGINA
+  uint64 pa = (uint64) kalloc();
+  if(!pa) {
+    printf("VMA lazy load failed, VMA has no write permission.\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    return;
+  }
+
+  if(!mappages(p->pagetable, 
+                        dir, 
+                     PGSIZE, 
+                         pa, 
+               PTE_U|PTE_R| ((vma->state == VMA_RW) * PTE_W)) )
+  {
+    printf("VMA lazy load failed, mappages failed.\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    return;
+  }
+  // ÉXITO COPIAR CONTENIDO
+  load_file_page(vma, dir);
+/*
+  ilock(vma->f->ip);
+  
+  int r = readi(vma->f->ip, 
+                         1, 
+                       dir, // destino
+           dir - vma->init + vma->file_init, // offset
+                    PGSIZE);
+
+  iunlock(vma->f->ip);
+
+  if(r == -1){
+    printf("VMA lazy load failed, file readi failed.\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    return;	
+  }
+*/
+}
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -64,9 +146,15 @@ usertrap(void)
     // so enable only now that we're done with those registers.
     intr_on();
 
-    syscall();
+    syscall();	
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 13 )  // Fallo de página en lectura TAREA 2
+  {
+    load_page_if_correct(r_stval(), 0);
+  } else if (r_scause() == 15 )  // Fallo de página en escritura TAREA 2
+  {
+    load_page_if_correct(r_stval(), 1); 
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

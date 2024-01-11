@@ -190,3 +190,26 @@ int munmap(void *addr, int length){
 	return -1;
 }
 
+int load_file_page(struct VMAdata * vma, uint64 dir){
+  ilock(vma->f->ip);
+  
+  int r = readi(vma->f->ip, 
+                         1, 
+                       dir, // destino
+           dir - vma->init + vma->file_init, // offset
+                    PGSIZE);
+
+  iunlock(vma->f->ip);
+
+  if(r == -1){
+    struct proc * p = myproc();
+    printf("VMA lazy load failed, file readi failed.\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    return -1;	
+  }
+
+  return 0;
+}
+
