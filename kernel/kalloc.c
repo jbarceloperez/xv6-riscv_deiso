@@ -163,8 +163,10 @@ incref(void *pa)
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+  { 
+    printf("Incref: pa: %p", pa);
     panic("incref");
-
+  }
   acquire(&kmem.lock);
   r = &kmem.runs[(uint64)pa / PGSIZE];
   r->ref++;

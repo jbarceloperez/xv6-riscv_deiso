@@ -6,6 +6,9 @@
 #include "proc.h"
 #include "defs.h"
 
+#include "fs.h"
+#include "sleeplock.h"
+#include "file.h"
 struct spinlock tickslock;
 uint ticks;
 
@@ -37,14 +40,14 @@ struct filepage_node{
 };
  
 struct {
- spinlock lock;
+ struct spinlock lock;
  int first_free;
  struct filepage_node l[NUM_FILEPAGES];
 } filepages;
 
 void init_filepages(){
-  initlock(&lock, "filepages");
-  int first_free = 0;
+  initlock(&filepages.lock, "filepages");
+  filepages.first_free = 0;
   for(int i = 0; i < NUM_FILEPAGES; ++i){
     filepages.l[i].next = i+1;
     filepages.l[i].page = -1;
@@ -54,11 +57,11 @@ void init_filepages(){
 }
 
 int get_node(){
-  if(first_free == -1) panic("No quedan nodos para almacenar páginas.")
+  if(filepages.first_free == -1) panic("No quedan nodos para almacenar páginas.");
   
-  int ret = first_free;
-  if(filepages.l[ret].is_last) first_free = -1;
-  else fist_free = filepages.l[ret].next;
+  int ret = filepages.first_free;
+  
+  filepages.first_free = filepages.l[ret].next;
   
   return ret;
 }
@@ -104,7 +107,7 @@ void remove_page(int init_node, int page){
   acquire(&filepages.lock);
   for(int i = init_node; filepages.l[i].next != -1; i = filepages.l[i].next){
     struct filepage_node * next_node = &filepages.l[filepages.l[i].next];
-    if(next_node.page == page){
+    if(next_node->page == page){
       filepages.l[i].next = next_node->next;
       next_node->next = filepages.first_free;
       filepages.first_free = filepages.l[i].next;
@@ -163,10 +166,10 @@ void load_page_if_correct(uint64 dir, int is_write){
   //Para indexar la tabla, añadimos un campo a struct file que indica la posición
   //en la tabla, en la tabla podemos almacenar una lista de segmentos contiguos 
   //de páginas reservadas, si no dejamos huecos en la lista, es bastante eficiente. 
-  int shared = (vma->flags & VMA_SHARED) ? 1 : 0; 
+  int shared = (vma->shared) ? 1 : 0; 
   
   uint64 pa = 0;
-  int page = (vma->file_init() + (dir - vma->init)) / PGSIZE;
+  int page = (vma->file_init + (dir - vma->init)) / PGSIZE;
   if( shared ){
     int pos = vma->f->pos_in_filepages;
     if(pos == -1){
