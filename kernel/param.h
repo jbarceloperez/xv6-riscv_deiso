@@ -12,5 +12,6 @@
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 
-// TAREA
+// TAREA 2
 #define NUM_VMA	     8 // max VMAs por proceso.
+#define NUM_FILEPAGES 1000 // tamaño tabla de páginas compartidas

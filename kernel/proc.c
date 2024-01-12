@@ -337,7 +337,6 @@ fork(void)
     }
   }
   np->vma_ptr = p->vma_ptr;
-  
 
   release(&np->lock);
 

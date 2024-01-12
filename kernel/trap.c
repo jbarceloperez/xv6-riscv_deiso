@@ -29,7 +29,95 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
-// Practica 2
+// TAREA 2
+struct filepage_node{
+  int next;
+  int page;
+  uint64 addr;
+};
+ 
+struct {
+ spinlock lock;
+ int first_free;
+ struct filepage_node l[NUM_FILEPAGES];
+} filepages;
+
+void init_filepages(){
+  initlock(&lock, "filepages");
+  int first_free = 0;
+  for(int i = 0; i < NUM_FILEPAGES; ++i){
+    filepages.l[i].next = i+1;
+    filepages.l[i].page = -1;
+    filepages.l[i].addr = 0;
+  }
+  filepages.l[NUM_FILEPAGES - 1].next = -1;
+}
+
+int get_node(){
+  if(first_free == -1) panic("No quedan nodos para almacenar páginas.")
+  
+  int ret = first_free;
+  if(filepages.l[ret].is_last) first_free = -1;
+  else fist_free = filepages.l[ret].next;
+  
+  return ret;
+}
+
+int new_file(){
+  acquire(&filepages.lock);
+
+  int ret = get_node();
+  filepages.l[ret].next = -1;
+  filepages.l[ret].page = -1;
+  filepages.l[ret].addr = 0;
+
+  release(&filepages.lock);
+  return ret; 
+}
+
+void add_page(int init_node, int page, uint64 addr){
+  acquire(&filepages.lock);
+
+  int new = get_node();
+  filepages.l[new].next = filepages.l[init_node].next;
+  filepages.l[init_node].next = new;
+  filepages.l[new].page = page;
+  filepages.l[new].addr = addr;
+ 
+  release(&filepages.lock);
+}
+
+uint64 find_page(int init_node, int page){
+  acquire(&filepages.lock);
+  uint64 ret = 0;
+  for(int i = init_node; i != -1; i = filepages.l[i].next){
+    if(filepages.l[i].page == page){ 
+      ret = filepages.l[i].addr;
+      break;
+    }
+  }
+  release(&filepages.lock);
+  return ret;
+}
+
+void remove_page(int init_node, int page){
+  acquire(&filepages.lock);
+  for(int i = init_node; filepages.l[i].next != -1; i = filepages.l[i].next){
+    struct filepage_node * next_node = &filepages.l[filepages.l[i].next];
+    if(next_node.page == page){
+      filepages.l[i].next = next_node->next;
+      next_node->next = filepages.first_free;
+      filepages.first_free = filepages.l[i].next;
+
+      next_node->page = -1;
+      next_node->addr = 0;
+    }
+  }
+  release(&filepages.lock);
+}
+
+
+// TAREA 2
 void load_page_if_correct(uint64 dir, int is_write){
   struct proc * p = myproc();  
   
@@ -69,18 +157,44 @@ void load_page_if_correct(uint64 dir, int is_write){
     return;
   }
   
-  //CARGAR PÁGINA
-  uint64 pa = (uint64) kalloc();
-  if(0 == pa) {
-    printf("VMA lazy load failed because kalloc failed.\n");
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+  //CARGAR PÁGINA SI: NO ESTÁ YA EN MEMORIA 
+  //                  SI ES VMA_RW Y VMA_PRIVATE
+  //SI ES COMPARTIDA AÑADIR A UNA TABLA PARA QUE LA ENCUENTREN FUTUROS PROCESOS 
+  //Para indexar la tabla, añadimos un campo a struct file que indica la posición
+  //en la tabla, en la tabla podemos almacenar una lista de segmentos contiguos 
+  //de páginas reservadas, si no dejamos huecos en la lista, es bastante eficiente. 
+  int shared = (vma->flags & VMA_SHARED) ? 1 : 0; 
+  
+  uint64 pa = 0;
+  int page = (vma->file_init() + (dir - vma->init)) / PGSIZE;
+  if( shared ){
+    int pos = vma->f->pos_in_filepages;
+    if(pos == -1){
+      vma->f->pos_in_filepages = pos = new_file();
+    }  
+    pa = find_page(pos, page);
+     
+  }
+  
+  int load = 0;
+  if( !shared || pa == 0){
+    uint64 pa = (uint64) kalloc();
+    if(0 == pa) {
+      printf("VMA lazy load failed because kalloc failed.\n");
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      setkilled(p);
     return;
+    }
+    load = 1;
+    if( shared ){
+      add_page(vma->f->pos_in_filepages, page, pa);
+    }
   }
 
   printf("Usertrap: lazy VMA, PID: %d, DIR: %p\n", p->pid, dir);
 
+  incref((void *)pa); 
   mappages(p->pagetable, 
                         dir, 
                      PGSIZE, 
@@ -88,8 +202,10 @@ void load_page_if_correct(uint64 dir, int is_write){
                PTE_V|PTE_U|PTE_R| ((vma->state == VMA_RW) ? PTE_W : 0) );
 
   // ÉXITO, COPIAR CONTENIDO
-  load_file_page(vma, dir);
-	
+  if( load ) {
+    load_file_page(vma, dir);
+  }
+
   // Tratar res == -1 (fallo?)
 }
 
