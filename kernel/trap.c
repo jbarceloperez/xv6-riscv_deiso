@@ -79,11 +79,13 @@ void load_page_if_correct(uint64 dir, int is_write){
     return;
   }
 
+  printf("Usertrap: lazy VMA, PID: %d, DIR: %p\n", p->pid, dir);
+
   mappages(p->pagetable, 
                         dir, 
                      PGSIZE, 
                          pa, 
-               PTE_U|PTE_R| ((vma->state == VMA_RW) ? PTE_W : 0) );
+               PTE_V|PTE_U|PTE_R| ((vma->state == VMA_RW) ? PTE_W : 0) );
 
   // ÉXITO, COPIAR CONTENIDO
   load_file_page(vma, dir);

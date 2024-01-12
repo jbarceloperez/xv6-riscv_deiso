@@ -13,23 +13,16 @@
 #include "stat.h"
 #include "proc.h"
 
-// TAREA 2
-#include "memlayout.h"
-
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct file file[NFILE];
-  // TAREA 2
-  uint64 vma_ptr;
 } ftable;
 
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
-  // TAREA 2
-  ftable.vma_ptr = VMA_INIT;
 }
 
 // Allocate a file structure.
@@ -220,7 +213,7 @@ void * mmap(void *addr, int length, int prot, int flags,
     panic("mmap: No read protection.");
   
   // Aumentar número de referencias al fichero 
-  filedup(f);
+  f = filedup(f);
   
   vma->f = f;
   vma->size = length;
@@ -230,8 +223,8 @@ void * mmap(void *addr, int length, int prot, int flags,
   // Elegir posición inicial en memoria virtual  
   acquire(&ftable.lock);
 
-  ftable.vma_ptr -= length;
-  vma->init = ftable.vma_ptr;
+  p->vma_ptr -= length;
+  vma->init = p->vma_ptr;
 
   release(&ftable.lock);
 
@@ -239,7 +232,7 @@ void * mmap(void *addr, int length, int prot, int flags,
 }
 
 int write_in_center(struct file *f, uint64 addr, uint64 init, uint64 n){
-    uint64 max = 4; //((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
+    uint64 max = BSIZE; //((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
     uint64 i = 0;
     int r = 0;
     printf("\n%d %d %d\n", addr, init, n);
@@ -258,13 +251,35 @@ int write_in_center(struct file *f, uint64 addr, uint64 init, uint64 n){
       end_op();
 
       if(r != n1){
-        panic("error from writei");
-        break;
+        printf("Probablemente el bloque %p no estaba mapeado. %d %d\n", addr + i, n1, r);
+        i += n1;
       }
-      i += r;
+      else {
+        i += r;
+      }
+      
     }
     int ret = (i == n ? n : -1);
+
+  printf("Escritos: %d bytes del fichero en posición %d\n", ret, init);
   return ret;
+}
+
+void
+uvmunmap_aux(pagetable_t pagetable, uint64 va, uint64 npages, int do_free){
+  uint64 a;
+  pte_t *pte;
+
+  if((va % PGSIZE) != 0)
+    panic("uvmunmap: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    if((pte = walk(pagetable, a, 0)) == 0)
+      panic("uvmunmap: walk");
+    if((*pte & PTE_V) != 0){
+      uvmunmap(pagetable, va, npages, do_free);
+    }
+  }
 }
 
 int munmap(void *addr, int length){
@@ -275,7 +290,7 @@ int munmap(void *addr, int length){
   
   uint64 dir = (uint64) addr;
   for(int i = 0; i < NUM_VMA; ++i){
-
+    
     if(p->vma[i].state != VMA_UNUSED            &&
        dir >= p->vma[i].init                    && 
        dir < p->vma[i].init + p->vma[i].size)
@@ -304,7 +319,7 @@ int munmap(void *addr, int length){
         return -1;
       }
     }
-    uvmunmap(p->pagetable, vma->init, vma->size / PGSIZE, 1);
+    uvmunmap_aux(p->pagetable, vma->init, vma->size / PGSIZE, 1);
     fileclose(vma->f);
     vma->state = VMA_UNUSED;
   }
@@ -318,7 +333,7 @@ int munmap(void *addr, int length){
         return -1;
       }
     }
-    uvmunmap(p->pagetable, 
+    uvmunmap_aux(p->pagetable, 
 	              dir, 
 		      (vma->init + vma->size - dir) / PGSIZE, 
                       1);
@@ -333,7 +348,7 @@ int munmap(void *addr, int length){
       }
     }
     printf("%d", length /PGSIZE );
-    uvmunmap(p->pagetable, vma->init, length / PGSIZE, 1);
+    uvmunmap_aux(p->pagetable, vma->init, length / PGSIZE, 1);
     
     vma->size = vma->size - length;
     vma->init = vma->init + length;
@@ -377,10 +392,14 @@ int load_file_page(struct VMAdata * vma, uint64 dir){
     return -1;	
   }
   
+  printf("Lazy VMA, copiando fichero, copiados %d bytes, rellenando con ceros %d bytes. PID: %d, DIR: %p\n", 
+	r, PGSIZE - r, myproc()->pid, dir);
+  printf("... vma.init: %p, vma.size: %d, vma.file_init: %d\n", 
+        vma->init, vma->size, vma->file_init);
   if(r < PGSIZE){
     char src = 0;
     for(uint64 aux = dir + r;  aux < dir + PGSIZE; aux += 1){
-	
+      //printf("%p ", aux);
       if(-1 == either_copyout(1, 
 		     aux, 
                      &src, 

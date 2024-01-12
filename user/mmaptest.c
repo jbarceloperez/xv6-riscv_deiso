@@ -133,6 +133,7 @@ mmap_test(void)
     err("munmap (2)");
 
   printf("Caso2 OK");
+
   // check that mmap doesn't allow read/write mapping of a
   // file opened read-only.
   if ((fd = open(f, O_RDONLY)) == -1)
@@ -271,6 +272,7 @@ fork_test(void)
     printf("fork_test failed\n");
     exit(1);
   }
+  
 
   // check that the parent's mappings are still there.
   _v1(p1);

@@ -110,4 +110,5 @@ struct proc {
 
   // TAREA 2
   struct VMAdata vma[NUM_VMA];  // VMAs del proceso.
+  uint64 vma_ptr;
 };

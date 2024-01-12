@@ -39,6 +39,7 @@ void *mmap(void * addr, int length, int prot, int flags,
            int fd, int offset);
 int munmap(void *addr, int length);
 int load_file_page(struct VMAdata * vma, uint64 dir);
+void uvmunmap_aux(pagetable_t pagetable, uint64 va, uint64 npages, int do_free);
 
 // fs.c
 void            fsinit(int);

@@ -155,9 +155,17 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  printf("Freeproc, PID: %d", p->pid);
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  // TAREA 2
+  for(int i = 0; i < NUM_VMA; ++i){
+    struct VMAdata * vma = &p->vma[i];
+    if(vma->state != VMA_UNUSED){
+      uvmunmap_aux(p->pagetable, vma->init, vma->size/PGSIZE, 1);
+    }
+  }
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -248,7 +256,10 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
-
+ 
+  // TAREA 2
+  p->vma_ptr = VMA_INIT;
+  
   p->state = RUNNABLE;
 
   release(&p->lock);
@@ -311,6 +322,22 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+ 
+  // TAREA 2
+  for(int i = 0; i < NUM_VMA; ++i){
+    struct VMAdata * vma = &p->vma[i];
+    struct VMAdata * nvma = &np->vma[i];   
+    nvma->state = vma->state;
+    if(vma->state != VMA_UNUSED){
+      nvma->init = vma->init;
+      nvma->size = vma->size;
+      nvma->file_init = vma->file_init;
+      nvma->shared = vma->shared;
+      nvma->f = filedup(vma->f);
+    }
+  }
+  np->vma_ptr = p->vma_ptr;
+  
 
   release(&np->lock);
 
