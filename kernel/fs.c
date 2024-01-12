@@ -513,14 +513,14 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
     return -1;
   }
   if(off + n > MAXFILE*BSIZE){
-    panic("writei: Escritura muy grande.");
+   // panic("writei: Escritura muy grande.");
     return -1;
   }
 
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){
     uint addr = bmap(ip, off/BSIZE);
     if(addr == 0){
-      panic("writei: bmap failed");
+    //  panic("writei: bmap failed");
       break;
     }
     bp = bread(ip->dev, addr);
