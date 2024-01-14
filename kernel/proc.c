@@ -63,7 +63,6 @@ procinit(void)
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
       // TAREA 1
-      p->pos_in_scheduler = -1;
       p->tickets = 0;
       p->ticks = 0;
   }
@@ -184,7 +183,6 @@ freeproc(struct proc *p)
   // TAREA 1
   scheduler_removeproc(p);
   p->ticks = 0;
-  p->pos_in_scheduler = -1;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -505,7 +503,6 @@ scheduler(void)
       c->proc = 0;
     }
     release(&p->lock);
-    //}
   }
 }
 

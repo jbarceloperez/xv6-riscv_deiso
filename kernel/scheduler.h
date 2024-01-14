@@ -12,10 +12,10 @@ struct random_generator{
 struct scheduler{
   //struct proc * proc[MAX_PROC];
   //int segtrees[2*MAX_PROC];
-  int num_proc;
-  int sum_tickets;
-  struct spinlock lock;
-  struct random_generator rg;
+  int num_proc;                 // numero de procesos en uso
+  int sum_tickets;              // suma de todos los tickets repartidos entre todos los procesos
+  struct spinlock lock;         // cerrojo para exclusión mutua del planificador
+  struct random_generator rg;   
 };
 
 struct proc * GetProc();

@@ -95,10 +95,8 @@ struct proc {
 
 
   // TAREA 1 
-  int tickets;
-  int ticks;
-  //scheduler->lock para cambiar esto
-  int pos_in_scheduler;
+  int tickets;    // numero de tickets asignados al proceso
+  int ticks;      // veces que se planifica el proceso
   
 
   // wait_lock must be held when using this:
