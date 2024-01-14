@@ -47,6 +47,7 @@ int main(int argc, char *argv[]){
     }
   }
 
+  // int interval = 0; // debug, para el .csv
   int aux = 0;
   while(1){
     for(int i = 0; i < 99999; i++){
@@ -56,11 +57,14 @@ int main(int argc, char *argv[]){
     }
     struct pstat info;
     getpinfo(&info);
-    for(int i=0; i<NPROC; i++){
+    for(int i=2; i<NPROC; i++){
       if(info.inuse[i] == 1){
         printf("pid: %d; tickets: %d; ticks: %d;\n", info.pid[i], info.tickets[i], info.ticks[i]);
+        // printf("%d,", info.ticks[i]); // debug, para el .csv
       }
     }
+    // printf("%d\n", interval); // debug, para el .csv
+    // interval++;
   }
   exit(0);
 }
